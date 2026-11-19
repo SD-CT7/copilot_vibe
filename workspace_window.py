@@ -95,8 +95,11 @@ class _Nav:
 class _Pulse:
     """チーム得点のライブバー。"""
 
+    MAX_HEIGHT = 180
+
     def __init__(self, master, tags):
-        self.widget = tk.Canvas(master, width=194, height=10, bg=BG, highlightthickness=0, bd=0)
+        self.widget = tk.Canvas(master, width=194, height=self.MAX_HEIGHT, bg=BG,
+                                highlightthickness=0, bd=0)
         self.tags = list(tags)
         self.cur = {}
         self.target = {}
@@ -106,7 +109,7 @@ class _Pulse:
         self.target = {t: float(scores.get(t, 0)) for t in tags}
         for t in tags:
             self.cur.setdefault(t, 0.0)
-        self.widget.configure(height=max(10, len(tags) * 26 + 6))
+        self.widget.configure(height=self.MAX_HEIGHT)
         self.draw()
 
     def step(self):
@@ -128,6 +131,7 @@ class _Pulse:
             cv.delete("all")
             if not self.tags:
                 cv.create_text(4, 6, anchor="nw", text="START でタグを設定", fill=INK3, font=fnt(8))
+                cv.configure(scrollregion=cv.bbox("all") or (0, 0, 194, self.MAX_HEIGHT))
                 return
             top = max(1.0, max(self.cur.get(t, 0) for t in self.tags))
             for i, t in enumerate(self.tags):
@@ -140,6 +144,7 @@ class _Pulse:
                 w = 186 * (self.cur.get(t, 0) / top)
                 if w > 3:
                     round_rect(cv, 4, y + 15, 4 + w, y + 21, 3, fill=col, outline="")
+            cv.configure(scrollregion=cv.bbox("all") or (0, 0, 194, self.MAX_HEIGHT))
         except Exception:
             pass
 
@@ -197,8 +202,15 @@ class WorkspaceWindow(tk.Toplevel):
 
         tk.Frame(rail, bg=LINE, height=1).pack(fill="x", pady=10, padx=6)
         label(rail, "TEAM PULSE", 8, True, INK3, BG).pack(anchor="w", padx=6)
-        self.pulse = _Pulse(rail, [])
-        self.pulse.widget.pack(anchor="w", pady=(6, 0))
+
+        pulse_box = tk.Frame(rail, bg=BG, height=_Pulse.MAX_HEIGHT)
+        pulse_box.pack(fill="x", pady=(6, 0))
+        pulse_box.pack_propagate(False)
+        self.pulse = _Pulse(pulse_box, [])
+        pulse_scroll = tk.Scrollbar(pulse_box, orient="vertical", command=self.pulse.widget.yview)
+        self.pulse.widget.configure(yscrollcommand=pulse_scroll.set)
+        self.pulse.widget.pack(side="left", fill="both", expand=True)
+        pulse_scroll.pack(side="right", fill="y")
 
         tk.Frame(rail, bg=LINE, height=1).pack(fill="x", pady=10, padx=6)
         self.lbl_ctx = tk.Label(rail, text="", bg=BG, fg=INK3, font=fnt(8, False, False),
